@@ -1,6 +1,7 @@
 // routes/search.js
 const express = require("express");
 const fs = require("fs");
+const Fuse = require("fuse.js");
 const router = express.Router();
 
 let wilayahList = [];
@@ -11,17 +12,24 @@ try {
   console.error("Gagal baca cache wilayah:", err.message);
 }
 
-// GET /search?q=jakar
+// Setup Fuse
+const fuse = new Fuse(wilayahList, {
+  keys: ["full"],      // hanya cari berdasarkan field 'full'
+  threshold: 0.6,      // semakin rendah → semakin strict (default 0.6)
+  distance: 100,       // max distance dalam string
+  minMatchCharLength: 2
+});
+
+// GET /search?q=jakrta
 router.get("/", (req, res) => {
   const query = req.query.q?.toLowerCase() || "";
 
   if (!query) return res.json([]);
 
-  const results = wilayahList
-    .filter(item => item.full.toLowerCase().includes(query))
-    .slice(0, 10)
+  const results = fuse.search(query).slice(0, 10);
 
-  res.json(results.map(r => r.full));
+  // hanya ambil field `full` dari hasil
+  res.json(results.map(result => result.item.full));
 });
 
 module.exports = router;
